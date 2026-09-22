@@ -47,9 +47,6 @@ ENV HOSTNAME="0.0.0.0"
 # - python3 & python3-pymupdf: High-performance PyMuPDF PDF manipulation
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-nogui \
-    libreoffice-writer \
-    libreoffice-calc \
-    libreoffice-impress \
     tesseract-ocr \
     tesseract-ocr-eng \
     poppler-utils \
