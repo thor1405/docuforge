@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docuforge:latest
+    container_name: docuforge_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
+      - MONGODB_URI=mongodb://mongodb:27017/docuforge
+      - JWT_SECRET=${JWT_SECRET:-docuforge_super_secure_jwt_secret_raspberry_pi_2026}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - NEXT_PUBLIC_RAZORPAY_KEY_ID=${NEXT_PUBLIC_RAZORPAY_KEY_ID:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - docuforge_net
+
+  mongodb:
+    image: mongo:7.0
+    container_name: docuforge_mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=docuforge
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - docuforge_net
+
+networks:
+  docuforge_net:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
