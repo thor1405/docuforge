@@ -532,8 +532,10 @@ export async function wordToPdfDocument(docxBuffer: ArrayBuffer | Uint8Array): P
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // Extract raw text and paragraphs using mammoth
-  const rawArray = new Uint8Array(docxBuffer);
-  const result = await mammoth.extractRawText({ arrayBuffer: rawArray.buffer });
+  const nodeBuffer = Buffer.isBuffer(docxBuffer)
+    ? docxBuffer
+    : Buffer.from(docxBuffer instanceof Uint8Array ? docxBuffer : new Uint8Array(docxBuffer));
+  const result = await mammoth.extractRawText({ buffer: nodeBuffer });
   const rawText = cleanWinAnsiText(result.value || "Converted Word Document");
 
   const lines = rawText.split("\n").filter((l) => l.trim().length > 0);

@@ -106,17 +106,40 @@ ${outputPdfPath}
  * Converts DOCX to PDF using LibreOffice headless if available
  */
 function convertWithLibreOffice(inputDocxPath: string, outputDir: string, expectedPdfPath: string): boolean {
-  const possibleCommands = ["libreoffice", "soffice", "C:\\Program Files\\LibreOffice\\program\\soffice.exe"];
+  const possibleCommands = [
+    "libreoffice",
+    "soffice",
+    "/usr/bin/libreoffice",
+    "/usr/bin/soffice",
+    "/usr/local/bin/libreoffice",
+    "/usr/local/bin/soffice",
+    "C:\\Program Files\\LibreOffice\\program\\soffice.exe",
+    "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
+  ];
+
+  const userProfileDir = path.join(
+    os.tmpdir(),
+    `lo_profile_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+  );
 
   for (const cmd of possibleCommands) {
     try {
-      execSync(`"${cmd}" --headless --convert-to pdf "${inputDocxPath}" --outdir "${outputDir}"`, {
-        stdio: "pipe",
-        timeout: 45000,
-      });
-      if (fs.existsSync(expectedPdfPath)) return true;
+      execSync(
+        `"${cmd}" --headless --invisible --nodefault --nofirststartwizard --nolockcheck --nologo "-env:UserInstallation=file://${userProfileDir.replace(/\\/g, "/")}" --convert-to pdf "${inputDocxPath}" --outdir "${outputDir}"`,
+        {
+          stdio: "pipe",
+          timeout: 45000,
+        }
+      );
+      if (fs.existsSync(expectedPdfPath) && fs.statSync(expectedPdfPath).size > 500) {
+        return true;
+      }
     } catch (e) {
       // Continue to next
+    } finally {
+      try {
+        if (fs.existsSync(userProfileDir)) fs.rmSync(userProfileDir, { recursive: true, force: true });
+      } catch (err) {}
     }
   }
   return false;
@@ -146,7 +169,11 @@ function getHeadlessBrowserPath(): string | null {
 /**
  * Converts DOCX buffer to styled HTML preserving images and alignments
  */
-export async function docxToStyledHtml(docxBuffer: Buffer): Promise<string> {
+export async function docxToStyledHtml(docxBuffer: Buffer | ArrayBuffer | Uint8Array): Promise<string> {
+  const nodeBuffer = Buffer.isBuffer(docxBuffer)
+    ? docxBuffer
+    : Buffer.from(docxBuffer instanceof Uint8Array ? docxBuffer : new Uint8Array(docxBuffer));
+
   const options = {
     convertImage: mammoth.images.imgElement(function (image) {
       return image.read("base64").then(function (imageBuffer) {
@@ -157,7 +184,7 @@ export async function docxToStyledHtml(docxBuffer: Buffer): Promise<string> {
     }),
   };
 
-  const result = await mammoth.convertToHtml({ buffer: docxBuffer }, options);
+  const result = await mammoth.convertToHtml({ buffer: nodeBuffer }, options);
   const rawHtml = result.value || "<p>Empty document</p>";
 
   return `<!DOCTYPE html>
