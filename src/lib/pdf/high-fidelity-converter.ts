@@ -117,25 +117,58 @@ function convertWithLibreOffice(inputDocxPath: string, outputDir: string, expect
     "C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe",
   ];
 
-  const userProfileDir = path.join(
-    os.tmpdir(),
-    `lo_profile_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
-  );
+  const baseNameWithoutExt = path.basename(inputDocxPath, path.extname(inputDocxPath));
+  const defaultPdfPath = path.join(outputDir, `${baseNameWithoutExt}.pdf`);
 
   for (const cmd of possibleCommands) {
+    const userProfileDir = path.join(
+      os.tmpdir(),
+      `lo_prof_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
+    );
+
     try {
+      const uriPath = (process.platform === "win32" ? "file:///" : "file://") + userProfileDir.replace(/\\/g, "/");
+
+      // Try writer_pdf_Export first
       execSync(
-        `"${cmd}" --headless --invisible --nodefault --nofirststartwizard --nolockcheck --nologo "-env:UserInstallation=file://${userProfileDir.replace(/\\/g, "/")}" --convert-to pdf "${inputDocxPath}" --outdir "${outputDir}"`,
+        `"${cmd}" --headless --invisible --nodefault --nofirststartwizard --nolockcheck --nologo "-env:UserInstallation=${uriPath}" --convert-to "pdf:writer_pdf_Export" "${inputDocxPath}" --outdir "${outputDir}"`,
         {
           stdio: "pipe",
           timeout: 45000,
         }
       );
-      if (fs.existsSync(expectedPdfPath) && fs.statSync(expectedPdfPath).size > 500) {
+
+      if (fs.existsSync(expectedPdfPath) && fs.statSync(expectedPdfPath).size > 100) {
         return true;
       }
-    } catch (e) {
-      // Continue to next
+      if (fs.existsSync(defaultPdfPath) && fs.statSync(defaultPdfPath).size > 100) {
+        if (defaultPdfPath !== expectedPdfPath) {
+          fs.copyFileSync(defaultPdfPath, expectedPdfPath);
+        }
+        return true;
+      }
+    } catch (e: any) {
+      // Try standard --convert-to pdf fallback
+      try {
+        execSync(
+          `"${cmd}" --headless --convert-to pdf "${inputDocxPath}" --outdir "${outputDir}"`,
+          {
+            stdio: "pipe",
+            timeout: 45000,
+          }
+        );
+        if (fs.existsSync(expectedPdfPath) && fs.statSync(expectedPdfPath).size > 100) {
+          return true;
+        }
+        if (fs.existsSync(defaultPdfPath) && fs.statSync(defaultPdfPath).size > 100) {
+          if (defaultPdfPath !== expectedPdfPath) {
+            fs.copyFileSync(defaultPdfPath, expectedPdfPath);
+          }
+          return true;
+        }
+      } catch (err2: any) {
+        console.warn(`LibreOffice ('${cmd}') attempt error:`, err2?.message);
+      }
     } finally {
       try {
         if (fs.existsSync(userProfileDir)) fs.rmSync(userProfileDir, { recursive: true, force: true });

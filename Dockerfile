@@ -42,14 +42,12 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Install runtime utilities for document processing on Raspberry Pi
-# - libreoffice-nogui: Headless document conversions (DOCX, PPTX, XLSX to PDF)
-# - tesseract-ocr: High-accuracy OCR image text extraction
-# - poppler-utils: PDF rendering and page extraction
-# - qpdf: Fast PDF linearization and encryption
-# - python3 & python3-pymupdf: High-performance PyMuPDF PDF manipulation
+# Install headless LibreOffice with Writer/Calc filters, fonts, and OCR utilities
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libreoffice-nogui \
+    libreoffice-writer-nogui \
+    libreoffice-calc-nogui \
+    libreoffice-impress-nogui \
+    libreoffice-draw-nogui \
     tesseract-ocr \
     tesseract-ocr-eng \
     poppler-utils \
@@ -59,14 +57,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     fonts-liberation \
     fonts-dejavu-core \
+    fonts-noto-core \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python pymupdf & pdf2docx if needed for direct script fallback
+# Install python pymupdf & pdf2docx for direct script fallback
 RUN pip3 install --no-cache-dir --break-system-packages pymupdf pdf2docx 2>/dev/null || true
 
-# Setup non-root system user for security
+# Setup non-root system user with writable home directory for LibreOffice profiles
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
+    adduser --system --uid 1001 --home /home/nextjs --shell /bin/sh nextjs && \
+    mkdir -p /home/nextjs && \
+    chown -R nextjs:nodejs /home/nextjs
+
+ENV HOME=/home/nextjs
 
 # Copy Next.js standalone output and public assets
 COPY --from=builder /app/public ./public
