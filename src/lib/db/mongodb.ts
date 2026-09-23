@@ -72,7 +72,8 @@ let isInitialized = false;
 
 export async function getDb(): Promise<Db> {
   const c = await clientPromise;
-  const db = c.db();
+  // If no database name was in the connection string path, default to 'docuforge'
+  const db = c.db("docuforge");
 
   if (!isInitialized) {
     try {

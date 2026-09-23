@@ -12,33 +12,14 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
-      - MONGODB_URI=mongodb://mongodb:27017/docuforge
+      - MONGODB_URI=${MONGODB_URI}
       - JWT_SECRET=${JWT_SECRET:-docuforge_super_secure_jwt_secret_raspberry_pi_2026}
       - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
       - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
       - NEXT_PUBLIC_RAZORPAY_KEY_ID=${NEXT_PUBLIC_RAZORPAY_KEY_ID:-}
-    depends_on:
-      - mongodb
-    networks:
-      - docuforge_net
-
-  mongodb:
-    image: mongo:latest
-    container_name: docuforge_mongodb
-    restart: unless-stopped
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_DATABASE=docuforge
-    volumes:
-      - mongodb_data:/data/db
     networks:
       - docuforge_net
 
 networks:
   docuforge_net:
     driver: bridge
-
-volumes:
-  mongodb_data:
-    driver: local
